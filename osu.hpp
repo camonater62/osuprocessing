@@ -76,21 +76,21 @@ namespace osu
 
         std::string toString() const
         {
-            std::string type = "";
-            switch (this->type)
+            std::string typeStr = "";
+            switch (type)
             {
             case HitObjectType::CIRCLE:
-                type = "CIRCLE";
+                typeStr = "CIRCLE";
                 break;
             case HitObjectType::SLIDER:
-                type = "SLIDER";
+                typeStr = "SLIDER";
                 break;
             case HitObjectType::SPINNER:
-                type = "SPINNER";
+                typeStr = "SPINNER";
                 break;
             }
 
-            return "Type: " + type + ", Time: " + std::to_string(time) + ", Length: " + std::to_string(length);
+            return "Type: " + typeStr + ", Time: " + std::to_string(time) + ", Length: " + std::to_string(length);
         }
     };
 
