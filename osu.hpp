@@ -19,9 +19,17 @@ namespace osu
         return res;
     }
 
+    enum class HitObjectType
+    {
+        CIRCLE = 0,
+        SLIDER = 1,
+        SPINNER = 3
+    };
+
     class HitObject
     {
     public:
+        HitObjectType type;
         int time;
         bool hit;
 
@@ -92,10 +100,33 @@ namespace osu
             const auto HitObjFunc = [&](std::string line)
             {
                 std::vector<std::string> args = split(line, ",");
+
+                int x = stoi(args[0]);
+                int y = stoi(args[1]);
+
                 int time = stoi(args[2]) + leadin;
+                int endTime = 0;
+
+                int type = stoi(args[3]);
+                HitObjectType hitType = HitObjectType::CIRCLE;
+                if (type & 0b00000010)
+                {
+                    hitType = HitObjectType::SLIDER;
+                    int length = stoi(args[7]);
+                    int slides = stoi(args[6]);
+                    // endTime = length / (SliderMultiplier * 100 * SV) * beatLength * slides;
+                }
+                else if (type & 0b00001000)
+                {
+                    hitType = HitObjectType::SPINNER;
+                    endTime = stoi(args[5]);
+                }
+
                 HitObject obj;
                 obj.time = time;
                 obj.hit = false;
+                obj.type = hitType;
+
                 hitObjects.push_back(obj);
             };
 
