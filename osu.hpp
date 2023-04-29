@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <vector>
 #include <fstream>
@@ -274,7 +276,6 @@ namespace osu
                     {
                         if (!timingPoints[i].Uninherited())
                         {
-                            // beatLength *= timingPoints[i].BeatLength();
                             sliderVelocity = timingPoints[i].SliderVelocity();
                         }
                     }
@@ -362,7 +363,6 @@ namespace osu
                 numSpinners++;
                 break;
             }
-            std::cout << obj << std::endl;
         }
         os << song.HitObjects().size() << " HitObjects (" << numCircles << " circles, " << numSliders << " sliders, " << numSpinners << " spinners)" << std::endl;
 
