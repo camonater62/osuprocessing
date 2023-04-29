@@ -29,19 +29,33 @@ namespace osu
     class HitObject
     {
     public:
-        HitObject(HitObjectType type, int time, int length)
+        HitObject(int x, int y, HitObjectType type, int time, int length)
         {
+            this->x = x;
+            this->y = y;
             this->type = type;
             this->time = time;
             this->length = length;
         }
 
     private:
+        int x;
+        int y;
         HitObjectType type;
         int time;
         int length;
 
     public:
+        int HitObject::X() const
+        {
+            return x;
+        }
+
+        int HitObject::Y() const
+        {
+            return y;
+        }
+
         HitObjectType HitObject::Type() const
         {
             return type;
