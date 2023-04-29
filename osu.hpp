@@ -29,13 +29,51 @@ namespace osu
     class HitObject
     {
     public:
+        HitObject(HitObjectType type, int time, int length)
+        {
+            this->type = type;
+            this->time = time;
+            this->length = length;
+        }
+
+    private:
         HitObjectType type;
         int time;
-        bool hit;
+        int length;
+
+    public:
+        HitObjectType HitObject::Type() const
+        {
+            return type;
+        }
+
+        int HitObject::Time() const
+        {
+            return time;
+        }
+
+        int HitObject::Length() const
+        {
+            return length;
+        }
 
         std::string toString() const
         {
-            return std::to_string(time) + " " + std::to_string(hit);
+            std::string type = "";
+            switch (this->type)
+            {
+            case HitObjectType::CIRCLE:
+                type = "CIRCLE";
+                break;
+            case HitObjectType::SLIDER:
+                type = "SLIDER";
+                break;
+            case HitObjectType::SPINNER:
+                type = "SPINNER";
+                break;
+            }
+
+            return "Type: " + type + ", Time: " + std::to_string(time) + ", Length: " + std::to_string(length);
         }
     };
 
@@ -50,29 +88,24 @@ namespace osu
     public:
         Song::Song(std::string osufile)
         {
+            leadin = 0;
             processOsuFile(osufile);
-            time = 0.0f;
         }
 
     private:
         int leadin;
-        float time;
         std::vector<HitObject> hitObjects;
 
     public:
-        void Song::Update(float fElapsedTime)
-        {
-            time += fElapsedTime;
-        }
-
-        int Song::TimeMillis() const
-        {
-            return int(time * 1000.0f);
-        }
-
         int Song::LeadIn() const
         {
             return leadin;
+        }
+
+        int Song::EndTime() const
+        {
+            const HitObject &last = hitObjects.back();
+            return last.Time() + last.Length();
         }
 
         const std::vector<HitObject> &
@@ -86,14 +119,39 @@ namespace osu
         {
             std::ifstream osu(osufile);
 
-            std::hash<std::string> hasher;
-            srand(hasher(osufile));
-
             const auto GeneralFunc = [&](std::string line)
             {
                 if (line.rfind("AudioLeadIn") == 0)
                 {
                     leadin = stoi(line.substr(line.find(':') + 1));
+                }
+            };
+
+            float sliderMultiplier = 1.0f;
+            const auto DifficultyFunc = [&](std::string line)
+            {
+                if (line.rfind("SliderMultiplier") == 0)
+                {
+                    sliderMultiplier = stof(line.substr(line.find(':') + 1));
+                }
+            };
+
+            float sliderVelocity = 1.0f;
+            float beatLength = 1.0f;
+            const auto TimingPointFunc = [&](std::string line)
+            {
+                std::vector<std::string> args = split(line, ",");
+
+                float bl = stof(args[1]);
+                int uninherited = stoi(args[6]);
+
+                if (uninherited == 0)
+                {
+                    sliderVelocity = -100.0f / beatLength;
+                }
+                else
+                {
+                    beatLength = bl;
                 }
             };
 
@@ -105,7 +163,7 @@ namespace osu
                 int y = stoi(args[1]);
 
                 int time = stoi(args[2]) + leadin;
-                int endTime = 0;
+                int noteLength = 0;
 
                 int type = stoi(args[3]);
                 HitObjectType hitType = HitObjectType::CIRCLE;
@@ -114,20 +172,15 @@ namespace osu
                     hitType = HitObjectType::SLIDER;
                     int length = stoi(args[7]);
                     int slides = stoi(args[6]);
-                    // endTime = length / (SliderMultiplier * 100 * SV) * beatLength * slides;
+                    noteLength = length / (sliderMultiplier * 100 * sliderVelocity) * beatLength * slides;
                 }
                 else if (type & 0b00001000)
                 {
                     hitType = HitObjectType::SPINNER;
-                    endTime = stoi(args[5]);
+                    noteLength = stoi(args[5]) - time;
                 }
 
-                HitObject obj;
-                obj.time = time;
-                obj.hit = false;
-                obj.type = hitType;
-
-                hitObjects.push_back(obj);
+                hitObjects.emplace_back(hitType, time, noteLength);
             };
 
             std::string line = "";
@@ -156,7 +209,6 @@ namespace osu
     std::ostream &operator<<(std::ostream &os, const Song &song)
     {
         os << "LeadIn: " << song.LeadIn() << std::endl;
-        os << "Time: " << song.TimeMillis() << std::endl;
         os << "HitObjects: " << std::endl;
         for (const auto &obj : song.GetHitObjects())
         {
