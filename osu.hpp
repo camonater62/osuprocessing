@@ -175,7 +175,7 @@ namespace osu
         }
 
         const std::vector<HitObject> &
-        GetHitObjects() const
+        HitObjects() const
         {
             return hitObjects;
         }
@@ -348,7 +348,7 @@ namespace osu
         int numCircles = 0;
         int numSliders = 0;
         int numSpinners = 0;
-        for (const HitObject &obj : song.GetHitObjects())
+        for (const HitObject &obj : song.HitObjects())
         {
             switch (obj.Type())
             {
@@ -364,7 +364,7 @@ namespace osu
             }
             std::cout << obj << std::endl;
         }
-        os << song.GetHitObjects().size() << " HitObjects (" << numCircles << " circles, " << numSliders << " sliders, " << numSpinners << " spinners)" << std::endl;
+        os << song.HitObjects().size() << " HitObjects (" << numCircles << " circles, " << numSliders << " sliders, " << numSpinners << " spinners)" << std::endl;
 
         return os;
     }
