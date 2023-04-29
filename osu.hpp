@@ -19,6 +19,7 @@ namespace osu
         return res;
     }
 
+#pragma region HitObject
     enum class HitObjectType
     {
         CIRCLE = 0,
@@ -46,27 +47,27 @@ namespace osu
         int length;
 
     public:
-        int HitObject::X() const
+        int X() const
         {
             return x;
         }
 
-        int HitObject::Y() const
+        int Y() const
         {
             return y;
         }
 
-        HitObjectType HitObject::Type() const
+        HitObjectType Type() const
         {
             return type;
         }
 
-        int HitObject::Time() const
+        int Time() const
         {
             return time;
         }
 
-        int HitObject::Length() const
+        int Length() const
         {
             return length;
         }
@@ -96,11 +97,58 @@ namespace osu
         os << obj.toString();
         return os;
     }
+#pragma endregion HitObject
 
-    class Song
+#pragma region TimingPoint
+    class TimingPoint
     {
     public:
-        Song::Song(std::string osufile)
+        TimingPoint(int time, float beatLength, bool uninherited)
+        {
+            this->time = time;
+            this->beatLength = beatLength;
+            this->uninherited = uninherited;
+        }
+
+    private:
+        int time;
+        float beatLength;
+        bool uninherited;
+
+    public:
+        int Time() const
+        {
+            return time;
+        }
+
+        float BeatLength() const
+        {
+            return beatLength;
+        }
+
+        bool Uninherited() const
+        {
+            return uninherited;
+        }
+
+        float SliderVelocity() const
+        {
+            if (uninherited)
+            {
+                return -100.0f / beatLength;
+            }
+            else
+            {
+                return 1.0f;
+            }
+        }
+    };
+
+#pragma region Beatmap
+    class Beatmap
+    {
+    public:
+        Beatmap(std::string osufile)
         {
             leadin = 0;
             processOsuFile(osufile);
@@ -109,35 +157,81 @@ namespace osu
     private:
         int leadin;
         std::vector<HitObject> hitObjects;
+        std::string audioFilename;
+        std::string title;
+        std::string artist;
+        int beatmapID;
 
     public:
-        int Song::LeadIn() const
+        int LeadIn() const
         {
             return leadin;
         }
 
-        int Song::EndTime() const
+        int EndTime() const
         {
             const HitObject &last = hitObjects.back();
             return last.Time() + last.Length();
         }
 
         const std::vector<HitObject> &
-        Song::GetHitObjects() const
+        GetHitObjects() const
         {
             return hitObjects;
         }
 
+        const std::string &AudioFilename() const
+        {
+            return audioFilename;
+        }
+
+        const std::string &Title() const
+        {
+            return title;
+        }
+
+        const std::string &Artist() const
+        {
+            return artist;
+        }
+
+        int BeatmapID() const
+        {
+            return beatmapID;
+        }
+
     private:
-        void Song::processOsuFile(std::string osufile)
+        void processOsuFile(std::string osufile)
         {
             std::ifstream osu(osufile);
 
+            std::vector<TimingPoint> timingPoints;
+
             const auto GeneralFunc = [&](std::string line)
             {
-                if (line.rfind("AudioLeadIn") == 0)
+                if (line.rfind("AudioFilename") == 0)
+                {
+                    audioFilename = line.substr(line.find(':') + 1);
+                }
+                else if (line.rfind("AudioLeadIn") == 0)
                 {
                     leadin = stoi(line.substr(line.find(':') + 1));
+                }
+            };
+
+            const auto MetadataFunc = [&](std::string line)
+            {
+                if (line.rfind("Title") == 0)
+                {
+                    title = line.substr(line.find(':') + 1);
+                }
+                else if (line.rfind("Artist") == 0)
+                {
+                    artist = line.substr(line.find(':') + 1);
+                }
+                else if (line.rfind("BeatmapID") == 0)
+                {
+                    beatmapID = stoi(line.substr(line.find(':') + 1));
                 }
             };
 
@@ -150,23 +244,15 @@ namespace osu
                 }
             };
 
-            float sliderVelocity = 1.0f;
-            float beatLength = 1.0f;
             const auto TimingPointFunc = [&](std::string line)
             {
                 std::vector<std::string> args = split(line, ",");
 
-                float bl = stof(args[1]);
+                int time = stoi(args[0]) + leadin;
+                float beatLength = stof(args[1]);
                 int uninherited = stoi(args[6]);
 
-                if (uninherited == 0)
-                {
-                    sliderVelocity = -100.0f / beatLength;
-                }
-                else
-                {
-                    beatLength = bl;
-                }
+                timingPoints.emplace_back(time, beatLength, uninherited == 0);
             };
 
             const auto HitObjFunc = [&](std::string line)
@@ -178,6 +264,25 @@ namespace osu
 
                 int time = stoi(args[2]) + leadin;
                 int noteLength = 0;
+
+                float sliderVelocity = 1.0f;
+                float beatLength = timingPoints[0].BeatLength();
+
+                for (int i = 0; i < timingPoints.size(); i++)
+                {
+                    if (timingPoints[i].Time() <= time)
+                    {
+                        if (!timingPoints[i].Uninherited())
+                        {
+                            // beatLength *= timingPoints[i].BeatLength();
+                            sliderVelocity = timingPoints[i].SliderVelocity();
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
 
                 int type = stoi(args[3]);
                 HitObjectType hitType = HitObjectType::CIRCLE;
@@ -194,7 +299,7 @@ namespace osu
                     noteLength = stoi(args[5]) - time;
                 }
 
-                hitObjects.emplace_back(hitType, time, noteLength);
+                hitObjects.emplace_back(x, y, hitType, time, noteLength);
             };
 
             std::string line = "";
@@ -212,6 +317,18 @@ namespace osu
                 {
                     GeneralFunc(line);
                 }
+                else if (section == "Metadata")
+                {
+                    MetadataFunc(line);
+                }
+                else if (section == "Difficulty")
+                {
+                    DifficultyFunc(line);
+                }
+                else if (section == "TimingPoints")
+                {
+                    TimingPointFunc(line);
+                }
                 else if (section == "HitObjects")
                 {
                     HitObjFunc(line);
@@ -220,14 +337,36 @@ namespace osu
         }
     };
 
-    std::ostream &operator<<(std::ostream &os, const Song &song)
+    std::ostream &operator<<(std::ostream &os, const Beatmap &song)
     {
-        os << "LeadIn: " << song.LeadIn() << std::endl;
-        os << "HitObjects: " << std::endl;
-        for (const auto &obj : song.GetHitObjects())
+        os << "Title: " << song.Title() << std::endl;
+        os << "Artist: " << song.Artist() << std::endl;
+        os << "AudioFilename: " << song.AudioFilename() << std::endl;
+        os << "BeatmapID: " << song.BeatmapID() << std::endl;
+        os << "LeadIn: " << song.LeadIn() << "ms" << std::endl;
+
+        int numCircles = 0;
+        int numSliders = 0;
+        int numSpinners = 0;
+        for (const HitObject &obj : song.GetHitObjects())
         {
-            os << obj << std::endl;
+            switch (obj.Type())
+            {
+            case HitObjectType::CIRCLE:
+                numCircles++;
+                break;
+            case HitObjectType::SLIDER:
+                numSliders++;
+                break;
+            case HitObjectType::SPINNER:
+                numSpinners++;
+                break;
+            }
+            std::cout << obj << std::endl;
         }
+        os << song.GetHitObjects().size() << " HitObjects (" << numCircles << " circles, " << numSliders << " sliders, " << numSpinners << " spinners)" << std::endl;
+
         return os;
     }
+#pragma endregion Beatmap
 }
