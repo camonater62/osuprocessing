@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <sstream>
 
 namespace osu
 {
@@ -205,7 +206,7 @@ namespace osu
     private:
         void processOsuFile(std::string osufile)
         {
-            std::ifstream osu(osufile);
+            std::stringstream osu(osufile);
 
             std::vector<TimingPoint> timingPoints;
 
