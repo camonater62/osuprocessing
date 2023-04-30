@@ -136,7 +136,7 @@ namespace osu
 
         float SliderVelocity() const
         {
-            if (uninherited)
+            if (!uninherited)
             {
                 return -100.0f / beatLength;
             }
@@ -278,6 +278,10 @@ namespace osu
                         if (!timingPoints[i].Uninherited())
                         {
                             sliderVelocity = timingPoints[i].SliderVelocity();
+                        }
+                        else
+                        {
+                            beatLength = timingPoints[i].BeatLength();
                         }
                     }
                     else
