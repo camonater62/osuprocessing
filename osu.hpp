@@ -136,7 +136,7 @@ namespace osu
 
         float SliderVelocity() const
         {
-            if (!uninherited)
+            if (uninherited)
             {
                 return -100.0f / beatLength;
             }
@@ -279,10 +279,6 @@ namespace osu
                         {
                             sliderVelocity = timingPoints[i].SliderVelocity();
                         }
-                        else
-                        {
-                            beatLength = timingPoints[i].BeatLength();
-                        }
                     }
                     else
                     {
@@ -297,7 +293,7 @@ namespace osu
                     hitType = HitObjectType::SLIDER;
                     int length = stoi(args[7]);
                     int slides = stoi(args[6]);
-                    noteLength = length / (sliderMultiplier * 100 * sliderVelocity) * beatLength * slides;
+                    noteLength = int(length / (sliderMultiplier * 100 * sliderVelocity) * beatLength);
                 }
                 else if (type & 0b00001000)
                 {
